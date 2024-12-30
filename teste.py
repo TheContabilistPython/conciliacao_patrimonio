@@ -4,7 +4,7 @@ import openpyxl
 # Lista de palavras compostas para buscar
 keywords = [
     "DEPRECIAÇÃO ACUMULADA",
-    "Máquinas e equipamentos",
+    "98 -  Máquinas e Equipamentos",
     "Móveis e Utensílios",
     "Ferramentas",
     "Imóveis",
@@ -26,7 +26,7 @@ keywords = [
 # Dicionário ligando {palavra} a um número
 palavra_para_numero = {
     "depreciacao_acumulada": 115,
-    "maquinas_e_equipamentos": 116,
+    "98_-__maquinas_e_equipamentos": 116,
     "moveis_e_utensilios": 117,
     "ferramentas": 118,
     "imoveis": 119,
@@ -80,12 +80,17 @@ def atualizar_planilha_excel(planilha_excel, valores_dict):
     ws = wb.active
     linhas_encontradas = False
 
+    # Calcular a soma dos valores específicos
+    soma_valores = sum(float(valores_dict[numero].replace('.', '').replace(',', '.')) for numero in [116, 117, 118, 119, 120, 121, 122, 2694, 2695, 2696, 2697, 2698, 2699, 3211, 3351, 3754, 3820] if numero in valores_dict)
+    valores_dict[115] = f"{soma_valores:,.2f}".replace('.', ',').replace(',', '.')
+
     for row in ws.iter_rows(min_row=2):
         cell_a = row[0].value  # Coluna A (índice 0)
         cell_d = row[3].value  # Coluna D (índice 3)
         cell_e = row[4].value  # Coluna E (índice 4)
         cell_g = row[6]        # Coluna G (índice 6)
         cell_h = row[7]        # Coluna H (índice 7)
+        cell_i = row[8]        # Coluna I (índice 8)
 
         if cell_a and cell_e:
             if cell_a in valores_dict:
@@ -97,6 +102,17 @@ def atualizar_planilha_excel(planilha_excel, valores_dict):
                     print(f"Valor encontrado em G: {cell_g.value}")
                     cell_h.value = f"=E{cell_h.row}-G{cell_h.row}"
                     linhas_encontradas = True
+
+            # Caso específico para A = 115
+            if cell_a == 115:
+                cell_g.value = soma_valores
+                print(f"Soma dos valores em G: {cell_g.value}")
+                cell_h.value = f"=E{cell_h.row}-G{cell_h.row}"
+                linhas_encontradas = True
+
+            # Escrever "OK" na coluna I para os números especificados
+            if cell_a in [3351, 120, 3350, 102]:
+                cell_i.value = "OK"
 
     if not linhas_encontradas:
         print("Linhas não encontradas.")
@@ -121,8 +137,8 @@ def procurar_computadores_perifericos(planilha_excel):
             print(f"'(-) Computadores Periféricos' encontrado na linha: {row[0].row}")
 
 # Exemplo de uso
-arquivo_html = r"C:\Users\contabil18\Downloads\Relatório Lançamentos de contabilização do ativo.htm"
-planilha_excel = r"C:\projeto\planilhas\balancete\CONCILIACAO_8801_112024.xlsx"
+arquivo_html = r"C:\Users\contabil18\Downloads\testeteste.htm"
+planilha_excel = r"C:\projeto\planilhas\balancete\CONCILIACAO_13701_112024.xlsx" 
 
 resultados, valores_dict = buscar_palavras_em_html(arquivo_html)
 
