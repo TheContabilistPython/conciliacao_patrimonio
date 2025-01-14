@@ -1,276 +1,182 @@
-from decimal import Decimal, ROUND_DOWN
-import re
 from bs4 import BeautifulSoup
+import openpyxl
 import pyautogui
 import time
-import tkinter as tk
-from tkinter import simpledialog
 import os
-import pandas as pd
-import openpyxl
-import time
-import pyautogui as bot
+import pygetwindow as gw
+import csv
+import customtkinter as ctk
+
+pyautogui.FAILSAFE = False
 
 # Função para obter o código da empresa, o mês e o ano do usuário
 def get_user_input():
-    root = tk.Tk()
-    root.withdraw()  # Esconder a janela principal
+    ctk.set_appearance_mode("dark")  # Modo de aparência escuro
+    ctk.set_default_color_theme("blue")  # Tema de cor padrão
 
-    # Solicitar o código da empresa
-    company_code = simpledialog.askstring(title="Código da Empresa", prompt="Digite o código da empresa:")
+    root = ctk.CTk()
+    root.withdraw()  # Esconder a janela principal
+    
+    # Carregar dados da empresa do arquivo CSV
+    company_data = []
+    with open(r'C:\\projeto\\empresas.csv', newline='',) as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        for row in reader:
+            company_data.append(f"{row['company_code']} - {row['company_name']}")
+
+    # Criar uma nova janela para a entrada do usuário
+    input_window = ctk.CTkToplevel(root)
+    input_window.title("Conciliador Automático de Folha")
+    input_window.geometry("480x400")
+
+    # Solicitar o nome da empresa com sugestões
+    ctk.CTkLabel(input_window, text="Nome da Empresa:").pack(padx=10, pady=10)
+    company_name_var = ctk.StringVar()
+    company_name_entry = ctk.CTkEntry(input_window, textvariable=company_name_var, width=300)
+    company_name_entry.pack(padx=10, pady=10)
+
+    suggestion_listbox = ctk.CTkTextbox(input_window, width=300, height=100)
+    suggestion_listbox.pack(padx=10, pady=10)
+
+    def update_suggestions():
+        value = company_name_var.get().lower()
+        suggestion_listbox.delete("1.0", ctk.END)
+        for item in company_data:
+            if value in item.lower():
+                suggestion_listbox.insert(ctk.END, item + "\n")
+
+    def on_key_release(event):
+        if hasattr(on_key_release, 'after_id'):
+            input_window.after_cancel(on_key_release.after_id)
+        on_key_release.after_id = input_window.after(1000, update_suggestions)
+
+    company_name_entry.bind('<KeyRelease>', on_key_release)
+
+    def on_listbox_select(event):
+        selected_company = suggestion_listbox.get("insert linestart", "insert lineend").strip()
+        company_name_var.set(selected_company)
+        # Destacar a empresa selecionada
+        suggestion_listbox.tag_remove("highlight", "1.0", ctk.END)
+        suggestion_listbox.tag_add("highlight", "insert linestart", "insert lineend")
+        suggestion_listbox.tag_config("highlight", background="yellow", foreground="black")
+
+    suggestion_listbox.bind('<ButtonRelease-1>', on_listbox_select)
 
     # Solicitar o mês e o ano
-    month_year = simpledialog.askstring(title="Mês e Ano", prompt="Digite o mês e o ano (MMYYYY):")
+    ctk.CTkLabel(input_window, text="Mês e Ano (MMYYYY):").pack(padx=10, pady=10)
+    month_year_var = ctk.StringVar()
+    month_year_entry = ctk.CTkEntry(input_window, textvariable=month_year_var)
+    month_year_entry.pack(padx=10, pady=10)
 
-    return company_code, month_year
+    def on_submit():
+        selected_company = company_name_var.get()
+        company_code, company_name = selected_company.split(' - ', 1)
+        month_year = month_year_var.get()
+        input_window.destroy()
+        root.quit()
+        global user_input
+        user_input = (company_code, month_year, company_name)
+
+    submit_button = ctk.CTkButton(input_window, text="Conciliar", command=on_submit)
+    submit_button.pack(padx=10, pady=10)
+
+    root.mainloop()
+    return user_input
 
 # Obter o código da empresa e o mês e o ano do usuário
-company_code, month_year = get_user_input()
+company_code, month_year, company_name = get_user_input()
 
 day_month_year = '01' + month_year
 
-network_path = r'\\ap05\modulos\UNICO.EXE'
+#####################
 
-# Pressionar Win + R
-pyautogui.hotkey('win', 'r')
-time.sleep(1)  # Esperar um momento para a janela de execução abrir
+# Load the Excel workbook and select the active worksheet
+excel_path = f'C:\\projeto\\planilhas\\balancete\\CONCILIACAO_{company_code}_{month_year}.xlsx'
+wb = openpyxl.load_workbook(excel_path)
+ws = wb.active
 
-pyautogui.typewrite(network_path)
-pyautogui.press('enter')
-
-# Esperar 12 segundos para o executável carregar
-time.sleep(12)
-
-# Digitar "contabil"
-pyautogui.typewrite('contabil')
-
-# Pressionar "tab"
-pyautogui.press('tab')
-
-# Digitar "1234"
-pyautogui.typewrite('1234')
-
-# Pressionar "enter"
-pyautogui.press('enter')
-
-# Esperar um momento para a próxima ação
-time.sleep(5)
-
-# Pressionar "Ctrl + 0"
-pyautogui.hotkey('ctrl', '3')
-
-# Esperar 10 segundos para a próxima ação
-time.sleep(10)
-
-pyautogui.press('alt')
-time.sleep(1)
-
-pyautogui.press('i')
-time.sleep(1)
-
-pyautogui.press('l')
-time.sleep(1)
-
-pyautogui.write(company_code)
-time.sleep(2)
-pyautogui.press('enter') 
-time.sleep(1)
-
-pyautogui.write(month_year)
-time.sleep(1)
-
-pyautogui.press('tab')
-time.sleep(1)
-pyautogui.press('tab')
-time.sleep(1)
-pyautogui.press('tab')
-time.sleep(1)
-pyautogui.press('tab')
-time.sleep(1)
-
-pyautogui.press('pgdn')
-time.sleep(1)
-
-pyautogui.click(28, 125)
-time.sleep(1)
-pyautogui.click(221, 255)
-time.sleep(1)
-pyautogui.click(225, 316)
-time.sleep(1)
-pyautogui.press('enter')
-time.sleep(5)
-
-arquivo_html = r"C:\Users\contabil18\Downloads\temp.htm"
-
-pyautogui.write(arquivo_html)
-
-planilha_excel = f"C:\\projeto\\planilhas\\balancete\\CONCILIACAO_{company_code}_{month_year}.xlsx"
-time.sleep(1)
-pyautogui.press('enter')
-time.sleep(5)
-
-# Lista de palavras compostas para buscar
-keywords = [
-    "DEPRECIAÇÃO ACUMULADA",
-    "98 -  Máquinas e Equipamentos",
-    "Móveis e Utensílios",
-    "Ferramentas",
-    "Imóveis",
-    "Veículos",
-    "Computadores e periféricos",
-    "Edificações e Construções",
-    "Veículos Usados",
-    "Aeronaves",
-    "Benfeitorias em Imóveis de Terceiros",
-    "Aparelhos Telefônicos",
-    "Instalações Diversas",
-    "Rouparias",
-    "Obras de Arte",
-    "Máquinas e Equipamentos Industriais",
-    "Salas Comerciais",
-    "Imobilizado Diversos"
+numeros_procurados = [
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    2694,
+    2695,
+    2696,
+    2697,
+    2698,
+    2699,
+    3211,
+    3351,
+    3754,
+    3820,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110
 ]
 
-# Dicionário ligando {palavra} a um número
-palavra_para_numero = {
-    "depreciacao_acumulada": 115,
-    "98_-__maquinas_e_equipamentos": 116,
-    "moveis_e_utensilios": 117,
-    "ferramentas": 118,
-    "imoveis": 119,
-    "veiculos": 120,
-    "computadores_e_perifericos": 121,
-    "edificacoes_e_construcoes": 122,
-    "veiculos_usados": 2694,
-    "aeronaves": 2695,
-    "benfeitorias_em_imoveis_de_terceiros": 2696,
-    "aparelhos_telefonicos": 2697,
-    "instalacoes_diversas": 2698,
-    "rouparias": 2699,
-    "obras_de_arte": 3211,
-    "maquinas_e_equipamentos_industriais": 3351,
-    "salas_comerciais": 3754,
-    "imobilizado_diversos": 3820
+# Mapeamento de cell_a para os valores correspondentes
+valor_map = {
+    115: '(-) DEPRECIAÇÃO ACUMULADA',
+    116: '(-) Máquinas e equipamentos',
+    117: '(-) Móveis e Utensílios',
+    118: '(-) Ferramentas',
+    119: '(-) Imóveis',
+    120: '(-) Veículos',
+    121: '(-) Computadores Periféricos',
+    122: '(-) Edificações e Construções',
+    2694: '(-) Veículos Usados',
+    2695: '(-) Aeronaves',
+    2696: '(-) Benfeitorias em Imóveis de Terceiros',
+    2697: '(-) Aparelhos Telefônicos',
+    2698: '(-) Instalações Diversas',
+    2699: '(-) Rouparias',
+    3211: '(-) Obras de Arte',
+    3351: '(-) Máquinas e Equipamentos Industriais',
+    3754: '(-) Salas Comerciais',
+    3820: '(-) Imobilizado Diversos',
+    96: 'IMOBILIZADO',
+    97: 'BENS E DIREITOS EM USO',
+    98: 'Máquinas e Equipamentos',
+    99: 'Móveis e Utensílios',
+    100: 'Ferramentas',
+    101: 'Imóveis',
+    102: 'Veículos',
+    103: 'Computadores e periféricos',
+    104: 'Aparelhos Telefônicos',
+    105: 'Rouparias',
+    106: 'Instalações Diversas',
+    107: 'Benfeitorias em imóveis de terceiros',
+    108: 'Aeronaves',
+    109: 'Terrenos',
+    110: 'Edificações e Construções'
 }
 
-# Função para normalizar as palavras
-def normalizar_palavra(palavra):
-    return palavra.lower().replace("ç", "c").replace("ã", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u").replace("ê", "e").replace("â", "a").replace("ô", "o").replace("á", "a").replace("à", "a").replace("ü", "u").replace("õ", "o").replace("ñ", "n").replace("í", "i").replace("ú", "u").replace("é", "e").replace("ó", "o").replace("ã", "a").replace("ç", "c").replace(" ", "_")
+for row in ws.iter_rows(min_row=2):
+    cell_a = row[0].value  # Coluna A (índice 0)
+    if cell_a in numeros_procurados:
+        valor_coluna_h = row[7].value  # Coluna H (índice 7)
+        print(f"Número {cell_a} encontrado: Valor na coluna H = {valor_coluna_h}")
+        
+        try:
+            if cell_a in valor_map:
+                row[8].value = "OK"
+        except TypeError:
+            continue
 
-# Função para buscar palavras no arquivo HTML e capturar valores
-def buscar_palavras_em_html(arquivo_html):
-    with open(arquivo_html, 'r', encoding='utf-8') as f:
-        linhas = f.readlines()
-
-    # Compilar a regex para buscar palavras-chave e capturar valores
-    padrao = re.compile(r'(' + '|'.join(map(re.escape, keywords)) + r').*?>([\d.,]+)</td>.*?>([\d.,]+)</td>', re.IGNORECASE)
-
-    # Verificar cada linha
-    resultados = []
-    valores_dict = {}
-    for i, linha in enumerate(linhas, 1):
-        correspondencia = padrao.search(linha)
-        if correspondencia:
-            palavra = correspondencia.group(1)
-            valor1 = correspondencia.group(2)
-            resultados.append(f"{palavra}: {valor1}")
-            palavra_normalizada = normalizar_palavra(palavra)
-            if palavra_normalizada in palavra_para_numero:
-                valores_dict[palavra_para_numero[palavra_normalizada]] = valor1
-
-    # Retornar todas as linhas encontradas
-    return resultados, valores_dict
-
-# Função para atualizar a planilha Excel
-def atualizar_planilha_excel(planilha_excel, valores_dict):
-    wb = openpyxl.load_workbook(planilha_excel)
-    ws = wb.active
-    linhas_encontradas = False
-
-    # Calcular a soma dos valores específicos
-    soma_valores = sum(float(valores_dict[numero].replace('.', '').replace(',', '.')) for numero in [116, 117, 118, 119, 120, 121, 122, 2694, 2695, 2696, 2697, 2698, 2699, 3211, 3351, 3754, 3820] if numero in valores_dict)
-    valores_dict[115] = f"{soma_valores:,.2f}".replace('.', ',').replace(',', '.')
-
-    for row in ws.iter_rows(min_row=2):
-        cell_a = row[0].value  # Coluna A (índice 0)
-        cell_d = row[3].value  # Coluna D (índice 3)
-        cell_e = row[4].value  # Coluna E (índice 4)
-        cell_g = row[6]        # Coluna G (índice 6)
-        cell_h = row[7]        # Coluna H (índice 7)
-        cell_i = row[8]        # Coluna I (índice 8)
-
-        if cell_a and cell_e:
-            if cell_a in valores_dict:
-                print(f"Linha encontrada: {cell_a}")
-                valor1 = valores_dict.get(cell_a, None)
-                if valor1:
-                    valor1_float = float(valor1.replace('.', '').replace(',', '.'))
-                    cell_g.value = valor1_float
-                    print(f"Valor encontrado em G: {cell_g.value}")
-                    cell_h.value = f"=E{cell_h.row}-G{cell_h.row}"
-                    cell_i.value = "OK"
-                    linhas_encontradas = True
-
-            # Caso específico para A = 115
-            if cell_a == 115:
-                cell_g.value = soma_valores
-                print(f"Soma dos valores em G: {cell_g.value}")
-                cell_h.value = f"=E{cell_h.row}-G{cell_h.row}"
-                cell_i.value = "OK"
-                linhas_encontradas = True
-
-            # Escrever "OK" na coluna I para os números especificados
-            if cell_a in [3351, 120, 3350, 102]:
-                cell_i.value = "OK"
-
-    if not linhas_encontradas:
-        print("Linhas não encontradas.")
-
-    wb.save(planilha_excel)
-
-    # Verificar se os valores foram encontrados nas linhas específicas
-    for numero in [116, 115, 2696, 121]:
-        for row in ws.iter_rows(min_row=2):
-            cell_a = row[0].value
-            if cell_a == numero:
-                print(f"Valor na linha com A={numero}: E={row[4].value}, G={row[6].value}, H={row[7].value}")
-
-# Função para procurar '(-) Computadores Periféricos' na coluna D e retornar a linha
-def procurar_computadores_perifericos(planilha_excel):
-    wb = openpyxl.load_workbook(planilha_excel)
-    ws = wb.active
-
-    for row in ws.iter_rows(min_row=2):
-        cell_d = row[3].value  # Coluna D (índice 3)
-        if "(-) Computadores Periféricos" in str(cell_d):
-            print(f"'(-) Computadores Periféricos' encontrado na linha: {row[0].row}")
-
-resultados, valores_dict = buscar_palavras_em_html(arquivo_html)
-
-# Exibir resultados encontrados
-if resultados:
-    for resultado in resultados:
-        print(resultado)
-else:
-    print("Nenhuma correspondência encontrada.")
-
-# Atualizar a planilha Excel
-atualizar_planilha_excel(planilha_excel, valores_dict)
-
-# Exibir valores específicos
-for codigo, valor in valores_dict.items():
-    print(f"{codigo}: {valor}")
-
-# Verificar se os valores foram encontrados nas linhas específicas
-wb = openpyxl.load_workbook(planilha_excel)
-ws = wb.active
-for numero in [116, 115, 2696, 121]:
-    for row in ws.iter_rows(min_row=2):
-        cell_a = row[0].value
-        if cell_a == numero:
-            print(f"Valor na linha com A={numero}: E={row[4].value}, G={row[6].value}, H={row[7].value}")
-
-# Procurar '(-) Computadores Periféricos' na coluna D
-procurar_computadores_perifericos(planilha_excel)
-
-print(valores_dict)
+# Salvar as alterações de volta no arquivo Excel
+wb.save(excel_path)
